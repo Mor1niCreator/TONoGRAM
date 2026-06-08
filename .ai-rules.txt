@@ -1,0 +1,16 @@
+# Gram vs Ton - Developer Rules and Project Architecture Guidelines
+
+## 1. Physics & Collision Consistency
+- **Mallet Collision Rules**: Both server (`server/GameRoom.ts`) and client (`src/GameCanvas.tsx`) must constrain mallets using the dynamic `circleRadius` instead of a hardcoded `MALLET_RADIUS`.
+- **Midline Constraints**: Under no circumstances should mallets cross the midline (`GAME_HEIGHT / 2`). Client-side prediction and server-side validation must use the exact same calculation.
+- **Powerup Physics**: Powerups must only be collected by active players (mallets). If a puck hits a powerup, it should either bounce off or pass through without consuming it, to avoid consuming a powerup with no player target.
+
+## 2. Resource & State Lifecycle
+- **Clean Disconnects & Teardown**: When a `GameRoom` is stopped:
+  - All intervals (`updateInterval`, `syncInterval`, `powerupInterval`) must be cleared.
+  - All pending timeouts (e.g., powerup durations, spawn timeouts) must be tracked and cleared.
+- **Game Room Cleanup**: Sockets must leave the `roomId` when a match ends or is cancelled.
+
+## 3. Performance & Network Optimization
+- **Input Throttling**: Client input events sent to the server (`player_input`) must be throttled to match the physics loop rate (approx. 60 FPS / 16ms) to prevent network congestion.
+- **State Interpolation**: Keep client-side interpolation smooth by maintaining a size-limited buffer and validating time differentials.

@@ -1,0 +1,6 @@
+{
+  "name": "Aero Strike",
+  "description": "An online aerohockey game with real-time multiplayer support, cartoon style graphics, and physics-based power-ups.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
