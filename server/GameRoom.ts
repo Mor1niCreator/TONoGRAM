@@ -3,10 +3,10 @@ const { Engine, World, Bodies, Body, Events, Vector } = Matter;
 import { GAME_WIDTH, GAME_HEIGHT, PUCK_RADIUS, MALLET_RADIUS, GOAL_WIDTH } from '../shared/constants.js';
 
 export class GameRoom {
-  engine: Engine;
-  puck: Body;
-  player1: Body;
-  player2: Body;
+  engine: Matter.Engine;
+  puck: Matter.Body;
+  player1: Matter.Body;
+  player2: Matter.Body;
   
   score = { p1: 0, p2: 0 };
   
@@ -28,6 +28,7 @@ export class GameRoom {
 
   // Set of all active timeouts to prevent memory leaks on teardown
   private timeouts: Set<NodeJS.Timeout> = new Set();
+  private stuckTicks = 0;
 
   constructor(
     public roomId: string, 
@@ -55,6 +56,12 @@ export class GameRoom {
     // Bottom Wall 1 & 2
     const botWall1 = Bodies.rectangle(wallWidth / 2, GAME_HEIGHT - 10, wallWidth, 20, wallOptions);
     const botWall2 = Bodies.rectangle(GAME_WIDTH - wallWidth / 2, GAME_HEIGHT - 10, wallWidth, 20, wallOptions);
+
+    // Goal side posts to prevent puck from escaping bounds laterally when entering the goal area
+    const topGoalPostL = Bodies.rectangle(wallWidth, -10, 10, 40, wallOptions);
+    const topGoalPostR = Bodies.rectangle(GAME_WIDTH - wallWidth, -10, 10, 40, wallOptions);
+    const botGoalPostL = Bodies.rectangle(wallWidth, GAME_HEIGHT + 10, 10, 40, wallOptions);
+    const botGoalPostR = Bodies.rectangle(GAME_WIDTH - wallWidth, GAME_HEIGHT + 10, 10, 40, wallOptions);
 
     // Goal sensors
     const topGoal = Bodies.rectangle(GAME_WIDTH / 2, -20, GOAL_WIDTH, 40, { isStatic: true, isSensor: true, label: 'goal_p2' });
@@ -84,6 +91,7 @@ export class GameRoom {
 
     World.add(this.engine.world, [
       leftWall, rightWall, topWall1, topWall2, botWall1, botWall2,
+      topGoalPostL, topGoalPostR, botGoalPostL, botGoalPostR,
       topGoal, botGoal, midline,
       this.puck, this.player1, this.player2
     ]);
@@ -202,8 +210,32 @@ export class GameRoom {
   // Prevent puck from getting stuck or too fast
   checkSpeed() {
     const speed = Vector.magnitude(this.puck.velocity);
+    
+    // 1. Limit max speed to prevent physics tunneling
     if (speed > 25) {
       Body.setVelocity(this.puck, Vector.mult(Vector.normalise(this.puck.velocity), 25));
+    }
+    
+    // 2. Prevent puck from sitting dead / getting stuck in corners or deadzones
+    if (speed < 0.5) {
+      this.stuckTicks++;
+      // If stuck for 2 seconds (120 ticks at 60 FPS)
+      if (this.stuckTicks > 120) {
+        this.stuckTicks = 0;
+        // Apply gentle diagonal push towards middle
+        const forceX = (Math.random() > 0.5 ? 1 : -1) * (2 + Math.random() * 2);
+        const forceY = (this.puck.position.y > GAME_HEIGHT / 2 ? -1 : 1) * (3 + Math.random() * 2);
+        Body.setVelocity(this.puck, { x: forceX, y: forceY });
+      }
+    } else {
+      this.stuckTicks = 0;
+    }
+
+    // 3. Keep puck within boundaries if it somehow glitched out
+    const px = this.puck.position.x;
+    const py = this.puck.position.y;
+    if (px < 0 || px > GAME_WIDTH || py < -50 || py > GAME_HEIGHT + 50) {
+      this.resetPuck(py > GAME_HEIGHT / 2);
     }
   }
 
@@ -278,7 +310,7 @@ export class GameRoom {
     }
   }
 
-  activatePowerup(powerupBody: Body, malletLabel: string) {
+  activatePowerup(powerupBody: Matter.Body, malletLabel: string) {
     const data = (powerupBody as any).powerupData;
     if (!data) return;
 
