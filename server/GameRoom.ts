@@ -1,4 +1,5 @@
-import { Engine, World, Bodies, Body, Events, Vector } from 'matter-js';
+import Matter from 'matter-js';
+const { Engine, World, Bodies, Body, Events, Vector } = Matter;
 import { GAME_WIDTH, GAME_HEIGHT, PUCK_RADIUS, MALLET_RADIUS, GOAL_WIDTH } from '../shared/constants.js';
 
 export class GameRoom {
