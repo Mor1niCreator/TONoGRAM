@@ -8,7 +8,6 @@ COPY package*.json tsconfig.json vite.config.ts server.ts ./
 COPY shared ./shared
 COPY server ./server
 COPY src ./src
-COPY public ./public
 COPY index.html ./
 
 # Install dependencies
